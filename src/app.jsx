@@ -11,7 +11,9 @@ const defaultSlideInfo = {
 		fontSize: 32,
 		fontFamily: 'Arial',
 		backgroundImage: '',
-		backgroundSize: 'auto'
+		backgroundSize: 'auto',
+		width: screen.width,
+		height: screen.height
 	}
 }
 
@@ -21,12 +23,14 @@ export default class App2 extends React.Component{
 		this.state = {
 			id: 'slideshow-testing',
 			currentSlideIndex: 0,
-			currentSlide: {...defaultSlideInfo},
-			slides: [{...defaultSlideInfo}],
+			currentSlide: Object.assign({}, defaultSlideInfo),
+			slides: [Object.assign({}, defaultSlideInfo)],
 			isViewer: false
 		}
 
+		this.addSlide = this.addSlide.bind(this);
 		this.handleUpdateSlide = this.handleUpdateSlide.bind(this);
+		this.navigation = this.navigation.bind(this);
 		this.receiveMessage = this.receiveMessage.bind(this);
 		this.sendMessage = this.sendMessage.bind(this);
 		this.updateMarkdown = this.updateMarkdown.bind(this);
@@ -35,6 +39,9 @@ export default class App2 extends React.Component{
 	}
 	
 	componentDidMount(){
+		this.setState({
+			currentSlide: this.state.slides[0]
+		})
 		const urlParams = new URLSearchParams(window.location.search);
 
 		if(urlParams.has('id')){
@@ -60,6 +67,8 @@ export default class App2 extends React.Component{
 			this.parseState(message.data);
 		} else if(message.data.type === 'getState'){
 			this.sendState();
+		} else if(message.data.type === 'navigation'){
+			this.navigation(message.data);
 		} else {
 			this.handleUpdateSlide(message.data);
 		}
@@ -81,6 +90,28 @@ export default class App2 extends React.Component{
 			currentSlide: data.slides[data.currentSlideIndex]
 		})
 	}
+
+	addSlide(){
+		const message = {type: 'addSlide'};
+		this.sendMessage(message);
+		this.handleUpdateSlide(message);
+	}
+
+	navigation(data){
+		const numberOfSlides = this.state.slides.length;
+		const currentSlideIndex = this.state.currentSlideIndex;
+		let newSlideIndex = currentSlideIndex + data;
+
+		if(newSlideIndex < 0){
+			newSlideIndex = 0;
+		} else if (newSlideIndex >= numberOfSlides){
+			newSlideIndex = numberOfSlides - 1;
+		}
+
+		const message = {type: 'changeToSlide', index: newSlideIndex}
+		this.handleUpdateSlide(message);
+		this.sendMessage({type: 'changeToSlide', index: newSlideIndex});
+	}
 	
 	handleUpdateSlide(data){
 		let {currentSlide} = this.state;
@@ -97,7 +128,20 @@ export default class App2 extends React.Component{
 			case 'updateSetting':
 				currentSlide.settings[data.setting] = data.value;
 				break;
+			
+			case 'addSlide':{
+				const {currentSlideIndex} = this.state;
+				let newSlides = [...this.state.slides];
+				const newSlide = Object.assign({}, defaultSlideInfo);
 
+				newSlides.splice(currentSlideIndex + 1, 0, newSlide);
+				this.setState({
+					slides: newSlides,
+					currentSlide: newSlide,
+					currentSlideIndex: currentSlideIndex + 1
+				});
+				return;
+			}
 			case 'changeToSlide':
 				this.setState({
 					currentSlideIndex: data.index,
@@ -110,12 +154,8 @@ export default class App2 extends React.Component{
 				break;
 		}
 
-		let slides = [...this.state.slides]
-		slides[this.state.currentSlideIndex] = currentSlide;
-
 		this.setState({
-			currentSlide,
-			slides
+			currentSlide
 		});
 	}
 
@@ -159,7 +199,7 @@ export default class App2 extends React.Component{
 					<div className='inputFields'>
 						<Text containerType='markdownContainer' text={currentSlide.markdown} update={this.updateMarkdown} />
 						<Text containerType='notesContainer' text={currentSlide.notes} update={this.updateNotes} />
-						<Settings settings={currentSlide.settings} updateSetting={this.updateSetting} />
+						<Settings settings={currentSlide.settings} updateSetting={this.updateSetting} navigate={this.navigation} addSlide={this.addSlide} />
 					</div>
 					<div className='slidePreviewContainer'>
 						<Slide text={currentSlide.markdown} settings={currentSlide.settings} />

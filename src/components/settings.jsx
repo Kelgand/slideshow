@@ -2,6 +2,11 @@ import React from 'react';
 
 const settings = (props) => (
 	<div className='settingsContainer' >
+		<div className='navigation'>
+			<button onClick={() => props.navigate(-1)}> &lt;-- </button>
+			<button onClick={() => props.addSlide()}> Add New </button>
+			<button onClick={() => props.navigate(1)}> --&gt; </button>
+		</div>
 		<label>
 			Font Size: 
 			<input type='number' min='0' step='1' value={props.settings.fontSize} onChange={(e) => props.updateSetting('fontSize', Number(e.target.value))} />
