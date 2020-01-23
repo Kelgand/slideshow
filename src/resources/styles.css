@@ -1,3 +1,13 @@
+html, body, #app{
+	width: 100%;
+	height: 100%;
+}
+
+body{
+	margin: 0px;
+	overflow: hidden;
+}
+
 .mainContainer{
 	display: flex;
 	justify-content: space-between;
@@ -10,21 +20,27 @@
 
 .markdownContainer{
 	width: 400px;
-	height: 300px;
+	height: 250px;
 }
 
 .notesContainer{
 	width: 400px;
-	height: 400px;
+	height: 300px;
+}
+
+.settingsContainer{
+	display: flex;
+	flex-direction: column;
 }
 
 .slidePreviewContainer{
-	border: 2px solid black;
 	flex: 1;
 	transform: scale(.7);
 }
 
 .slide{
+	border: 2px solid black;
+	box-sizing: border-box;
 	width: 100%;
 	height: 100%;
 }
