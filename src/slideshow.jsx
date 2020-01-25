@@ -1,12 +1,13 @@
 import React from 'react';
 
-import Text from './components/text';
+import ImportExportModal from './components/importExportModal'
 import Settings from './components/settings';
 import Slide from './components/slide';
+import Text from './components/text';
 
 const defaultSlideInfo = {
-	markdown: 'Markdown!',
-	notes: 'notes!',
+	markdown: '',
+	notes: '',
 	settings: {
 		fontSize: 32,
 		fontFamily: 'Arial',
@@ -17,7 +18,7 @@ const defaultSlideInfo = {
 	}
 }
 
-export default class App2 extends React.Component{
+export default class Slideshow extends React.Component{
 	constructor(props){
 		super(props);
 		this.state = {
@@ -25,14 +26,18 @@ export default class App2 extends React.Component{
 			currentSlideIndex: 0,
 			currentSlide: Object.assign({}, defaultSlideInfo),
 			slides: [Object.assign({}, defaultSlideInfo)],
-			isViewer: false
+			isViewer: false,
+			showImportExportModal: false,
 		}
 
 		this.addSlide = this.addSlide.bind(this);
+		this.deleteSlide = this.deleteSlide.bind(this);
 		this.handleUpdateSlide = this.handleUpdateSlide.bind(this);
+		this.importSlides = this.importSlides.bind(this);
 		this.navigation = this.navigation.bind(this);
 		this.receiveMessage = this.receiveMessage.bind(this);
 		this.sendMessage = this.sendMessage.bind(this);
+		this.toggleModal = this.toggleModal.bind(this);
 		this.updateMarkdown = this.updateMarkdown.bind(this);
 		this.updateNotes = this.updateNotes.bind(this);
 		this.updateSetting = this.updateSetting.bind(this);
@@ -97,11 +102,14 @@ export default class App2 extends React.Component{
 		this.handleUpdateSlide(message);
 	}
 
-	navigation(data){
-		const numberOfSlides = this.state.slides.length;
-		const currentSlideIndex = this.state.currentSlideIndex;
-		let newSlideIndex = currentSlideIndex + data;
+	deleteSlide(index){
+		const message = {type: 'deleteSlide', index}
+		this.handleUpdateSlide(message);
+		this.sendMessage(message);
+	}
 
+	navigation(newSlideIndex){
+		const numberOfSlides = this.state.slides.length;
 		if(newSlideIndex < 0){
 			newSlideIndex = 0;
 		} else if (newSlideIndex >= numberOfSlides){
@@ -119,15 +127,18 @@ export default class App2 extends React.Component{
 		switch(data.type){
 			case 'updateMarkdown':
 				currentSlide.markdown = data.markdown;
-				break;
+				this.setState({currentSlide});
+				return;
 
 			case 'updateNotes':
 				currentSlide.notes = data.notes;
-				break;
+				this.setState({currentSlide});
+				return;
 
 			case 'updateSetting':
 				currentSlide.settings[data.setting] = data.value;
-				break;
+				this.setState({currentSlide});
+				return;
 			
 			case 'addSlide':{
 				const {currentSlideIndex} = this.state;
@@ -142,6 +153,31 @@ export default class App2 extends React.Component{
 				});
 				return;
 			}
+
+			case 'deleteSlide': {
+				let newSlides = [...this.state.slides];
+				let newCurrent = this.state.currentSlide;
+				let newIndex = this.state.currentSlideIndex;
+
+				newSlides.splice(data.index, 1);
+				if(newSlides.length === 0){
+					newSlides = [Object.assign({}, defaultSlideInfo)];
+					newCurrent = newSlides[0];
+				} else if(newIndex >= newSlides.length){
+					newIndex = newSlides.length - 1;
+					newCurrent = newSlides[newIndex];
+				} else if(newIndex === data.index){
+					newCurrent = newSlides[newIndex];
+				}
+
+				this.setState({
+					slides: newSlides,
+					currentSlide: newCurrent,
+					currentSlideIndex: newIndex
+				});
+				return;
+			}
+
 			case 'changeToSlide':
 				this.setState({
 					currentSlideIndex: data.index,
@@ -153,10 +189,6 @@ export default class App2 extends React.Component{
 				console.log(data)
 				break;
 		}
-
-		this.setState({
-			currentSlide
-		});
 	}
 
 	updateMarkdown(markdown){
@@ -187,8 +219,32 @@ export default class App2 extends React.Component{
 		this.sendMessage(message);
 	}
 
+	toggleModal(shouldShow){
+		this.setState({
+			showImportExportModal: shouldShow
+		});
+	}
+
+	importSlides(json){
+		const newState = {
+			slides: JSON.parse(json),
+			currentSlideIndex: 0
+		};
+
+		this.sendMessage({
+			type: 'state',
+			...newState
+		})
+		this.parseState(newState);
+
+		this.setState({
+			showImportExportModal: false
+		});
+	}
+
 	render(){
-		const {currentSlide} = this.state;
+		const {currentSlide, currentSlideIndex, showImportExportModal, slides} = this.state;
+		
 		if(this.state.isViewer){
 			return (
 				<Slide text={currentSlide.markdown} settings={currentSlide.settings} />
@@ -196,14 +252,25 @@ export default class App2 extends React.Component{
 		} else {
 			return (
 				<div className='mainContainer'>
+					<div className='slideThumbnails'>
+						{
+							slides.map((slide, index) => (
+								<div className='thumbnailContainer' onClick={() => this.navigation(index)} key={index}>
+									<Slide scale={125 / slide.settings.width} showBorder={true} text={slide.markdown} settings={slide.settings} />
+								</div>
+							))
+						}
+					</div>
 					<div className='inputFields'>
-						<Text containerType='markdownContainer' text={currentSlide.markdown} update={this.updateMarkdown} />
-						<Text containerType='notesContainer' text={currentSlide.notes} update={this.updateNotes} />
-						<Settings settings={currentSlide.settings} updateSetting={this.updateSetting} navigate={this.navigation} addSlide={this.addSlide} />
+						<Text containerType='markdownContainer' text={currentSlide.markdown} update={this.updateMarkdown} placeholder='Enter your markdown text here' />
+						<Text containerType='notesContainer' text={currentSlide.notes} update={this.updateNotes} placeholder='Enter your notes here' />
+						<Settings currentIndex={currentSlideIndex} settings={currentSlide.settings} updateSetting={this.updateSetting} navigate={this.navigation} addSlide={this.addSlide} deleteSlide={this.deleteSlide} />
+						<button className='importExportButton' onClick={() => this.toggleModal(true)}>Import/Export JSON</button>
 					</div>
 					<div className='slidePreviewContainer'>
-						<Slide text={currentSlide.markdown} settings={currentSlide.settings} />
+						<Slide scale='.5' text={currentSlide.markdown} showBorder={true} settings={currentSlide.settings} />
 					</div>
+					{showImportExportModal ? <ImportExportModal import={this.importSlides} toggle={this.toggleModal} text={JSON.stringify(slides)} /> : null}
 				</div>
 			);
 		}

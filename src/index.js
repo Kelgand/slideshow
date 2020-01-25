@@ -1,8 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import App from "./app.jsx";
+import Slideshow from "./slideshow.jsx";
 import "./styles.less";
 
 
-var mountNode = document.getElementById("app");
-ReactDOM.render(<App name="Jane" />, mountNode);
+var mountNode = document.getElementById("slideshow");
+ReactDOM.render(<Slideshow />, mountNode);
